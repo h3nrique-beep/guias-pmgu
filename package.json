@@ -1,0 +1,13 @@
+{
+  "name": "guias-pmgu",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Interface Node.js para guias de ajuste e glosa",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check public/app.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}

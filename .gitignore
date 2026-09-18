@@ -1,0 +1,5 @@
+data/
+output/
+target/
+tmp/
+node_modules/

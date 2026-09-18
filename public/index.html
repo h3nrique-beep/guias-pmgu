@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guias PMGU</title>
+  <link rel="stylesheet" href="/styles.css">
+  <style>[hidden]{display:none!important}td select.module{min-width:285px;text-align:center}.module-guide{justify-content:center}.module-guide strong{margin-right:0}.preview-card{margin-top:18px}.preview-paper{overflow:auto;max-height:900px;padding:24px;background:#dfe5ea;border-radius:12px}.document-model{width:190mm;min-height:267mm;margin:auto;padding:9mm;background:#fff;color:#111;font:9px Arial;box-shadow:0 2px 12px #0002}.document-model .official,.document-model h3{text-align:center;font-weight:bold}.document-model h3{font-size:11px;margin:18px 0 5px}.document-model p{margin:7px 0}.document-model table{min-width:0;margin:7px 0 13px}.document-model th,.document-model td{padding:4px;border:1px solid #111;background:#fff}.document-model .money{text-align:right;white-space:nowrap}.document-model .signatures{display:flex;gap:32px;margin-top:38px}.document-model .signatures div{flex:1;border-top:1px solid #111;padding-top:4px;text-align:center}@media(max-width:760px){.preview-paper{padding:8px}.document-model{transform:scale(.54);transform-origin:top left;margin-bottom:-125mm}}</style>
+  <style>.document-model{font-family:"Times New Roman",serif;font-size:9pt;box-shadow:none}.document-model .official{font:700 8pt Arial;margin-bottom:9px;line-height:1.2}.document-model .official-logo{display:block;width:24px;max-height:32px;object-fit:contain;margin:0 auto 2px}.document-model .identity{font-weight:700;line-height:1.35}.document-model h2{font-size:12pt;text-align:center;margin:18px 0 8px}.document-model h3{font-size:10pt;margin:12px 0 4px}.document-model table{font-size:9pt;border-collapse:collapse;margin:6px 0 12px}.document-model th,.document-model td{border:1px solid #000;padding:3px;vertical-align:top}.document-model .summary th{text-align:center}.document-model .summary td{height:54px}.document-model .summary .observation{font-size:8pt}.document-model .total{text-align:right}.document-model .total th{font-weight:700}.document-model .signatures{font:9pt Arial;gap:20px}.document-model .signatures div{padding-top:4px}</style>
+  <style>.document-model .summary{table-layout:fixed}.document-model .summary th:nth-child(1),.document-model .summary td:nth-child(1){width:14.35%}.document-model .summary th:nth-child(2),.document-model .summary td:nth-child(2){width:14.35%}.document-model .summary th:nth-child(3),.document-model .summary td:nth-child(3){width:11.67%}.document-model .summary th:nth-child(4),.document-model .summary td:nth-child(4){width:14.91%}.document-model .summary th:nth-child(5),.document-model .summary td:nth-child(5){width:44.72%}</style>
+  <style>.money-input{display:flex;align-items:center;border:1px solid #c7d3df;border-radius:8px;background:#fff;overflow:hidden}.money-input:focus-within{border-color:#1769aa;box-shadow:0 0 0 3px #1769aa20}.money-input>span{padding-left:10px;font-weight:700;white-space:nowrap}.money-input input{min-width:0!important;border:0!important;box-shadow:none!important;padding-left:7px}.table-wrap .money-input{min-width:132px}</style>
+  <style>.adjustment-justification{display:flex;flex-wrap:wrap;align-items:center;gap:5px;min-width:280px;padding:9px;border:1px solid #c7d3df;border-radius:8px;background:#f8fbfd;line-height:1.35}.adjustment-justification input{width:105px;padding:6px}.adjustment-justification strong{white-space:nowrap}</style>
+</head>
+<body>
+  <main id="login-view" class="login-shell">
+    <section class="login-card">
+      <div class="brand-mark">PMGU</div>
+      <p class="eyebrow">AUDITORIA DE CONTAS MÉDICAS</p>
+      <h1>Guias de ajuste e glosa</h1>
+      <p class="muted">Acesso seguro ao sistema de análise.</p>
+      <form id="login-form" class="stack">
+        <label>Usuário<input name="username" autocomplete="username" required autofocus></label>
+        <label>Senha<input name="password" type="password" autocomplete="current-password" required></label>
+        <button>Entrar no sistema</button>
+      </form>
+      <p id="login-error" class="error" hidden></p>
+    </section>
+  </main>
+
+  <div id="app-view" hidden>
+    <header class="topbar">
+      <a class="brand" href="#"><span>PMGU</span> Guias</a>
+      <nav aria-label="Navegação principal">
+        <button class="nav-link active" data-screen="guide">Nova guia</button>
+        <button class="nav-link" data-screen="recent">Registros</button>
+      </nav>
+      <div class="account"><span id="username"></span><button id="logout" class="text-button">Sair</button></div>
+    </header>
+
+    <main class="app-shell">
+      <section id="guide-screen" class="screen">
+        <div class="page-title"><div><p class="eyebrow">NOVA ANÁLISE</p><h1>Guia de ajuste e glosa</h1><p class="muted">Preencha os dados e lance os itens da auditoria.</p></div><div class="title-actions"><button id="new-guide" class="secondary">Criar outra guia</button><button id="print-guide" class="secondary" disabled>Imprimir / PDF</button><button id="save-guide" class="secondary">Salvar guia</button><button id="finalize-guide">Finalizar guia</button></div></div>
+        <form id="guide-form">
+          <input id="guide-number" type="hidden">
+          <section class="panel identity-panel">
+            <div class="section-heading"><div><h2>Identificação</h2><p>Dados básicos da guia.</p></div></div>
+            <div class="form-grid identity-grid"><label>OCS<input id="ocs" list="ocs-options" required placeholder="Informe a organização de saúde"></label><datalist id="ocs-options"></datalist><label>Paciente<input id="patient" required placeholder="Nome completo do paciente"></label><label>Valor apresentado<span class="money-input"><span>R$</span><input id="billed" inputmode="decimal" value="0,00" required></span></label></div>
+          </section>
+          <section class="metrics" aria-live="polite"><article><span>Valor apresentado</span><strong id="billed-total">R$ 0,00</strong></article><article class="danger"><span>Glosa</span><strong id="glosa-total">R$ 0,00</strong></article><article class="warning"><span>Ajuste</span><strong id="ajuste-total">R$ 0,00</strong></article><article class="success"><span>Valor auditado</span><strong id="auditado-total">R$ 0,00</strong></article></section>
+          <section class="panel items-panel">
+            <div class="section-heading"><div><h2>Itens da auditoria</h2></div><button id="add-item" type="button" class="secondary">+ Repetir módulo atual</button></div>
+            <div class="module-guide"><span>Fluxo atual</span><strong id="module-name"></strong><span id="module-step"></span><button id="previous-module" type="button" class="text-button">← Voltar</button><button id="next-module" type="button" class="text-button">Próximo →</button><button id="show-all" type="button" class="text-button">Ver concluídos</button></div>
+            <div class="table-wrap"><table><thead><tr><th>Módulo</th><th>Especificação</th><th class="honor-column">Especialidade</th><th class="honor-column">CRM</th><th>Justificativa</th><th>Valor</th><th><span class="sr-only">Ações</span></th></tr></thead><tbody id="items"></tbody></table></div>
+            <template id="item-template"><tr><td><select class="module" aria-label="Módulo"></select></td><td><input class="specification" list="specifications" required aria-label="Especificação"></td><td class="honor-cell"><input class="specialty" aria-label="Especialidade"></td><td class="honor-cell"><input class="crm" aria-label="CRM"></td><td><textarea class="justification" required aria-label="Justificativa"></textarea><div class="adjustment-justification" hidden><span>Ajuste, será pago</span><strong>R$</strong><input class="adjustment-value" inputmode="decimal" value="0,00" aria-label="Valor a pagar"><span>conforme as regras da CBHPM Edição 2014 e de acordo com o item 5 do referencial de custos do contrato.</span></div></td><td><span class="money-input"><span>R$</span><input class="amount" inputmode="decimal" value="0,00" required aria-label="Valor"></span></td><td><button type="button" class="remove" aria-label="Excluir item">×</button></td></tr></template><datalist id="specifications"></datalist>
+          </section>
+        </form>
+        <section class="panel preview-card"><div class="section-heading"><div><h2>Pré-visualização da guia</h2></div></div><div id="preview" class="preview-paper"></div></section>
+      </section>
+
+      <section id="recent-screen" class="screen" hidden><div class="page-title"><div><p class="eyebrow">HISTÓRICO</p><h1>Guias salvas</h1><p class="muted">Abra, imprima ou exclua uma guia.</p></div></div><section class="panel table-wrap"><table><thead><tr><th>OCS</th><th>Paciente</th><th>Valor apresentado</th><th>Registrada em</th><th>Ações</th></tr></thead><tbody id="recent-guides"></tbody></table></section></section>
+    </main>
+  </div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
