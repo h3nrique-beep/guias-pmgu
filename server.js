@@ -64,7 +64,8 @@ function totals(items, billed) {
   const ajuste = items.filter((item) => item.module.startsWith('Ajuste')).reduce((sum, item) => sum + Number(item.amount), 0);
   return { glosa, ajuste, auditado: Number(billed) - glosa - ajuste };
 }
-function reportPage(data) {
+function reportPage(data) { return reportPageBody(data).replace('</head>', '<style>@page{size:A4;margin:11.09mm 9.42mm 14.94mm 10.81mm}*{box-sizing:border-box}body{width:auto!important;margin:0!important;padding:0!important}table{max-width:100%!important}h3{text-transform:uppercase!important;border:1px solid #000;border-bottom:0;margin:12px 0 0!important;padding:2px}h3+table{margin-top:0!important}table:not(.summary){table-layout:fixed}table:not(.summary) th:nth-child(1),table:not(.summary) td:nth-child(1){width:5.25%}table:not(.summary) th:nth-child(2),table:not(.summary) td:nth-child(2){width:37.22%}table:not(.summary) th:nth-child(3),table:not(.summary) td:nth-child(3){width:46.84%}table:not(.summary) th:nth-child(4),table:not(.summary) td:nth-child(4){width:10.69%}</style></head>'); }
+function reportPageBody(data) {
   const summary = totals(data.items, data.billed);
   const sections = ['Ajuste', 'Glosa'].map((prefix) => {
     const groups = MODULES.filter((module) => module.startsWith(prefix)).map((module) => [module, data.items.filter((item) => item.module === module)]).filter(([, items]) => items.length);
@@ -105,6 +106,8 @@ const server = http.createServer(async (request, response) => {
     if (pathname === '/styles.css') return serve(response, path.join(ROOT, 'public', 'styles.css'), 'text/css; charset=utf-8');
     if (pathname === '/app.js') return serve(response, path.join(ROOT, 'public', 'app.js'), 'application/javascript; charset=utf-8');
     if (pathname === '/template-logo.png') return serve(response, path.join(ROOT, 'public', 'template-logo.png'), 'image/png');
+    if (pathname === '/pmgu-csc.png') return serve(response, path.join(ROOT, 'public', 'pmgu-csc.png'), 'image/png');
+    if (pathname === '/sisglosa.jpg') return serve(response, path.join(ROOT, 'public', 'sisglosa.jpg'), 'image/jpeg');
     if (pathname === '/' || pathname === '/index.html') return serve(response, path.join(ROOT, 'public', 'index.html'), 'text/html; charset=utf-8');
     if (pathname === '/api/login' && request.method === 'POST') { const data = await body(request); const saved = db.prepare('SELECT password_hash FROM users WHERE username=?').get(String(data.username || '')); if (!saved || !passwordMatches(String(data.password || ''), saved.password_hash)) return fail(response, 401, 'Usuário ou senha inválidos.'); const id = crypto.randomUUID(); sessions.set(id, { username: data.username, expires: Date.now() + 8 * 60 * 60 * 1000 }); return json(response, 200, { username: data.username }, { 'Set-Cookie': `PMGU_SESSION=${id}; HttpOnly; SameSite=Lax; Path=/` }); }
     if (pathname === '/api/logout' && request.method === 'POST') { sessions.delete(cookie(request, 'PMGU_SESSION')); return json(response, 200, {}, { 'Set-Cookie': 'PMGU_SESSION=; Max-Age=0; HttpOnly; SameSite=Lax; Path=/' }); }
