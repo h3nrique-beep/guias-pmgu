@@ -41,7 +41,6 @@ const cookie = (request, name) => Object.fromEntries((request.headers.cookie || 
 const json = (response, status, value, headers = {}) => response.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', ...headers }).end(JSON.stringify(value));
 const fail = (response, status, message) => json(response, status, { error: message });
 const authenticated = (request) => { const session = sessions.get(cookie(request, 'PMGU_SESSION')); return session && session.expires > Date.now() ? session : null; };
-const query = (request) => new URL(request.url, `http://${request.headers.host}`).searchParams;
 
 function body(request) {
   return new Promise((resolve, reject) => {
@@ -90,7 +89,7 @@ function save(data) {
   db.exec('BEGIN');
   try {
     let id = Number(data.number || 0);
-    if (id) db.prepare('UPDATE guides SET ocs=?, patient=?, billed=? WHERE number=?').run(ocs, patient, billed.toFixed(2), id);
+    if (id && !db.prepare('UPDATE guides SET ocs=?, patient=?, billed=? WHERE number=?').run(ocs, patient, billed.toFixed(2), id).changes) throw new Error('Guia não encontrada.');
     else id = Number(db.prepare('INSERT INTO guides (ocs, patient, billed) VALUES (?, ?, ?) RETURNING number').get(ocs, patient, billed.toFixed(2)).number);
     db.prepare('DELETE FROM guide_items WHERE guide_number=?').run(id);
     const insert = db.prepare('INSERT INTO guide_items (guide_number, module, specification, specialty, crm, justification, amount) VALUES (?, ?, ?, ?, ?, ?, ?)');
@@ -106,7 +105,6 @@ const server = http.createServer(async (request, response) => {
     if (pathname === '/styles.css') return serve(response, path.join(ROOT, 'public', 'styles.css'), 'text/css; charset=utf-8');
     if (pathname === '/app.js') return serve(response, path.join(ROOT, 'public', 'app.js'), 'application/javascript; charset=utf-8');
     if (pathname === '/template-logo.png') return serve(response, path.join(ROOT, 'public', 'template-logo.png'), 'image/png');
-    if (pathname === '/pmgu-csc.png') return serve(response, path.join(ROOT, 'public', 'pmgu-csc.png'), 'image/png');
     if (pathname === '/sisglosa.jpg') return serve(response, path.join(ROOT, 'public', 'sisglosa.jpg'), 'image/jpeg');
     if (pathname === '/' || pathname === '/index.html') return serve(response, path.join(ROOT, 'public', 'index.html'), 'text/html; charset=utf-8');
     if (pathname === '/api/login' && request.method === 'POST') { const data = await body(request); const saved = db.prepare('SELECT password_hash FROM users WHERE username=?').get(String(data.username || '')); if (!saved || !passwordMatches(String(data.password || ''), saved.password_hash)) return fail(response, 401, 'Usuário ou senha inválidos.'); const id = crypto.randomUUID(); sessions.set(id, { username: data.username, expires: Date.now() + 8 * 60 * 60 * 1000 }); return json(response, 200, { username: data.username }, { 'Set-Cookie': `PMGU_SESSION=${id}; HttpOnly; SameSite=Lax; Path=/` }); }
@@ -117,7 +115,6 @@ const server = http.createServer(async (request, response) => {
     if (pathname === '/api/guides' && request.method === 'POST') return json(response, 201, save(await body(request)));
     if (pathname === '/api/options/ocs') return json(response, 200, db.prepare("SELECT DISTINCT ocs FROM guides WHERE trim(ocs)<>'' ORDER BY ocs").all().map((row) => row.ocs));
     if (pathname === '/api/options/specifications') return json(response, 200, db.prepare('SELECT DISTINCT specification FROM guide_items WHERE module=? ORDER BY specification').all(url.searchParams.get('module') || '').map((row) => row.specification));
-    if (pathname === '/api/users' && request.method === 'POST') { const data = await body(request); if (!/^[A-Za-z0-9._-]{3,40}$/.test(data.username || '') || String(data.password || '').length < 6) return fail(response, 400, 'Usuário: 3–40 caracteres; senha: mínimo 6 caracteres.'); try { db.prepare('INSERT INTO users (username,password_hash) VALUES (?,?)').run(data.username, hash(data.password)); return json(response, 201, {}); } catch { return fail(response, 409, 'Usuário já existe.'); } }
     const match = pathname.match(/^\/api\/guides\/(\d+)(\/report)?$/); if (match) { const data = guide(Number(match[1])); if (!data) return fail(response, 404, 'Guia não encontrada.'); if (match[2]) { response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); return response.end(reportPage(data)); } if (request.method === 'GET') return json(response, 200, data); if (request.method === 'DELETE') { db.prepare('DELETE FROM guide_items WHERE guide_number=?').run(data.number); db.prepare('DELETE FROM guides WHERE number=?').run(data.number); return json(response, 200, {}); } }
     return fail(response, 404, 'Rota não encontrada.');
   } catch (error) { console.error(error); return fail(response, 400, error.message || 'Não foi possível concluir a operação.'); }

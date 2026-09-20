@@ -17,7 +17,7 @@ function toast(message, type = '') { const box = $('#toast'); box.textContent = 
 async function api(url, options = {}) {
   const response = await fetch(url, { headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options });
   const data = response.headers.get('content-type')?.includes('application/json') ? await response.json() : null;
-  if (response.status === 401) return showLogin();
+  if (response.status === 401) { showLogin(); throw new Error('Sessão expirada.'); }
   if (!response.ok) throw new Error(data?.error || 'Não foi possível concluir a operação.');
   return data;
 }
@@ -92,7 +92,7 @@ async function saveGuide() {
 async function finalizeGuide() { if (!confirm('Finalizar esta guia?')) return; const report = window.open('', '_blank'); try { const saved = await saveGuide(); if (report) report.location = `/api/guides/${saved.number}/report`; toast('Guia finalizada.', 'success'); } catch (error) { report?.close(); throw error; } }
 async function loadRecent() {
   const guides = await api('/api/guides'); const target = $('#recent-guides'); target.replaceChildren();
-  guides.forEach((guide) => { const row = document.createElement('tr'); row.innerHTML = `<td>${guide.ocs}</td><td>${guide.patient}</td><td>${format(guide.billed)}</td><td>${new Date(`${guide.created_at}Z`).toLocaleDateString('pt-BR')}</td><td class="row-actions"><button class="text-button open">Abrir</button><button class="text-button report">PDF</button><button class="text-button delete danger-text">Excluir</button></td>`; $('.open', row).onclick = () => openGuide(guide.number); $('.report', row).onclick = () => window.open(`/api/guides/${guide.number}/report`, '_blank'); $('.delete', row).onclick = async () => { if (confirm('Excluir esta guia?')) { await api(`/api/guides/${guide.number}`, { method: 'DELETE' }); toast('Guia excluída.', 'success'); loadRecent(); } }; target.append(row); });
+  guides.forEach((guide) => { const row = document.createElement('tr'); row.innerHTML = `<td>${escape(guide.ocs)}</td><td>${escape(guide.patient)}</td><td>${format(guide.billed)}</td><td>${new Date(`${guide.created_at}Z`).toLocaleDateString('pt-BR')}</td><td class="row-actions"><button class="text-button open">Abrir</button><button class="text-button report">PDF</button><button class="text-button delete danger-text">Excluir</button></td>`; $('.open', row).onclick = () => openGuide(guide.number); $('.report', row).onclick = () => window.open(`/api/guides/${guide.number}/report`, '_blank'); $('.delete', row).onclick = async () => { if (confirm('Excluir esta guia?')) { await api(`/api/guides/${guide.number}`, { method: 'DELETE' }); toast('Guia excluída.', 'success'); loadRecent(); } }; target.append(row); });
 }
 async function openGuide(number) {
   const guide = await api(`/api/guides/${number}`); $('#guide-number').value = guide.number; $('#ocs').value = guide.ocs; $('#patient').value = guide.patient; $('#billed').value = Number(guide.billed).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); $('#items').replaceChildren(); activeModule = guide.items[0]?.module || modules[0]; showAll = false; guide.items.forEach((item) => addItem(item.module, item)); if (!guide.items.length) addItem(); $('#print-guide').disabled = false; totals(); navigate('guide');

@@ -1,6 +1,6 @@
-# Guias PMGU
+# SISGLOSA
 
-Aplicação local para elaborar guias de ajuste e glosa, com pré-visualização e impressão no padrão do documento PMGU.
+Versão 1.1.2. Aplicação local para elaborar guias de ajuste e glosa, com pré-visualização e impressão no padrão do documento PMGU.
 
 ## Requisitos
 
