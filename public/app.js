@@ -4,6 +4,7 @@ const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL
 let activeModule = modules[0];
 let showAll = false;
 let draftTimer;
+let currentSession;
 const draftKey = 'pmgu-guide-draft';
 
 function isHonor(module) { return module.includes('honorário'); }
@@ -14,6 +15,15 @@ function escape(value) { return String(value ?? '').replace(/[&<>"']/g, (charact
 function adjustmentText(value) { return `Ajuste, será pago R$ ${value} conforme as regras da CBHPM Edição 2014 e de acordo com o item 5 do referencial de custos do contrato.`; }
 function adjustmentValue(text) { return String(text || '').match(/^Ajuste, será pago R\$\s*(.*?)\s*conforme as regras da CBHPM Edição 2014 e de acordo com o item 5 do referencial de custos do contrato\.$/)?.[1] || '0,00'; }
 function toast(message, type = '') { const box = $('#toast'); box.textContent = message; box.className = `show ${type}`; clearTimeout(box.timer); box.timer = setTimeout(() => { box.className = ''; }, 3600); }
+function confirmAction(message, { title = 'Confirmar ação', confirm = 'Confirmar', danger = false } = {}) {
+  return new Promise((resolve) => {
+    const modal = $('#confirm-modal'); const accept = $('#modal-confirm'); const cancel = $('#modal-cancel');
+    $('#modal-title').textContent = title; $('#modal-message').textContent = message; accept.textContent = confirm; accept.classList.toggle('danger', danger); modal.hidden = false;
+    const close = (value) => { modal.hidden = true; accept.onclick = cancel.onclick = null; document.removeEventListener('keydown', keydown); resolve(value); };
+    const keydown = (event) => { if (event.key === 'Escape') close(false); };
+    accept.onclick = () => close(true); cancel.onclick = () => close(false); modal.onclick = (event) => { if (event.target === modal) close(false); }; document.addEventListener('keydown', keydown); accept.focus();
+  });
+}
 async function api(url, options = {}) {
   const response = await fetch(url, { headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }, ...options });
   const data = response.headers.get('content-type')?.includes('application/json') ? await response.json() : null;
@@ -21,8 +31,9 @@ async function api(url, options = {}) {
   if (!response.ok) throw new Error(data?.error || 'Não foi possível concluir a operação.');
   return data;
 }
-function showLogin() { $('#app-view').hidden = true; $('#login-view').hidden = false; }
-function showApp(username) { $('#username').textContent = username; $('#login-view').hidden = true; $('#app-view').hidden = false; resetGuide(); restoreDraft(); totals(); loadOcs(); loadRecent(); }
+function showLogin() { currentSession = null; $('#app-view').hidden = true; $('#app-view').style.display = 'none'; $('#password-view').hidden = true; $('#login-view').hidden = false; $('#login-view').style.display = 'grid'; }
+function showPasswordView() { $('#login-view').hidden = true; $('#login-view').style.display = 'none'; $('#app-view').hidden = true; $('#password-view').hidden = false; $('#password-view').style.display = 'grid'; $('#password-form').reset(); $('#password-form input').focus(); }
+function showApp(session) { currentSession = session; const admin = session.role === 'admin'; $('#username').textContent = session.username; document.querySelectorAll('.admin-only').forEach((item) => { item.hidden = !admin; }); document.querySelectorAll('.guide-only').forEach((item) => { item.hidden = admin; }); $('#login-view').hidden = true; $('#login-view').style.display = 'none'; $('#password-view').hidden = true; $('#app-view').hidden = false; $('#app-view').style.display = 'block'; if (admin) return navigate('admin'); resetGuide(); restoreDraft(); totals(); loadOcs(); loadRecent(); }
 
 function moduleOptions(selected) {
   return ['Ajuste', 'Glosa'].map((prefix) => `<optgroup label="${prefix}s">${modules.filter((module) => module.startsWith(prefix)).map((module) => `<option value="${module}" ${module === selected ? 'selected' : ''}>${module}</option>`).join('')}</optgroup>`).join('');
@@ -89,17 +100,24 @@ async function saveGuide() {
   const items = rows().map(rowValues); const saved = await api('/api/guides', { method: 'POST', body: JSON.stringify({ number: $('#guide-number').value || 0, ocs: $('#ocs').value, patient: $('#patient').value, billed: amount($('#billed').value), items }) });
   $('#guide-number').value = saved.number; $('#print-guide').disabled = false; sessionStorage.removeItem(draftKey); toast('Guia salva com sucesso.', 'success'); loadOcs(); loadRecent(); return saved;
 }
-async function finalizeGuide() { if (!confirm('Finalizar esta guia?')) return; const report = window.open('', '_blank'); try { const saved = await saveGuide(); if (report) report.location = `/api/guides/${saved.number}/report`; toast('Guia finalizada.', 'success'); } catch (error) { report?.close(); throw error; } }
+async function finalizeGuide() { if (!await confirmAction('A guia será salva e aberta para impressão.', { title: 'Finalizar guia', confirm: 'Finalizar' })) return; const report = window.open('', '_blank'); try { const saved = await saveGuide(); if (report) report.location = `/api/guides/${saved.number}/report`; toast('Guia finalizada.', 'success'); } catch (error) { report?.close(); throw error; } }
 async function loadRecent() {
   const guides = await api('/api/guides'); const target = $('#recent-guides'); target.replaceChildren();
-  guides.forEach((guide) => { const row = document.createElement('tr'); row.innerHTML = `<td>${escape(guide.ocs)}</td><td>${escape(guide.patient)}</td><td>${format(guide.billed)}</td><td>${new Date(`${guide.created_at}Z`).toLocaleDateString('pt-BR')}</td><td class="row-actions"><button class="text-button open">Abrir</button><button class="text-button report">PDF</button><button class="text-button delete danger-text">Excluir</button></td>`; $('.open', row).onclick = () => openGuide(guide.number); $('.report', row).onclick = () => window.open(`/api/guides/${guide.number}/report`, '_blank'); $('.delete', row).onclick = async () => { if (confirm('Excluir esta guia?')) { await api(`/api/guides/${guide.number}`, { method: 'DELETE' }); toast('Guia excluída.', 'success'); loadRecent(); } }; target.append(row); });
+  guides.forEach((guide) => { const row = document.createElement('tr'); row.innerHTML = `<td>${escape(guide.ocs)}</td><td>${escape(guide.patient)}</td><td>${format(guide.billed)}</td><td>${new Date(`${guide.created_at}Z`).toLocaleDateString('pt-BR')}</td><td class="row-actions"><button class="text-button open">Abrir</button><button class="text-button report">PDF</button><button class="text-button delete danger-text">Excluir</button></td>`; $('.open', row).onclick = () => openGuide(guide.number); $('.report', row).onclick = () => window.open(`/api/guides/${guide.number}/report`, '_blank'); $('.delete', row).onclick = async () => { if (!await confirmAction('Esta guia e seus itens serão removidos.', { title: 'Excluir guia', confirm: 'Excluir', danger: true })) return; await api(`/api/guides/${guide.number}`, { method: 'DELETE' }); toast('Guia excluída.', 'success'); loadRecent(); }; target.append(row); });
 }
+async function loadUsers() {
+  const users = await api('/api/users'); const target = $('#users'); target.replaceChildren();
+  $('#user-count').textContent = users.length; $('#pending-password-count').textContent = users.filter((user) => Number(user.must_change_password)).length;
+  users.forEach((user) => { const row = document.createElement('tr'); const pending = Number(user.must_change_password); const removable = user.role !== 'admin'; row.innerHTML = `<td><strong>${escape(user.username)}</strong></td><td><span class="role-badge">${user.role === 'admin' ? 'Administrador' : 'Usuário'}</span></td><td><span class="status-badge ${pending ? 'pending' : 'ready'}">${pending ? 'Troca obrigatória' : 'Regular'}</span></td><td><button class="text-button reset-user">Redefinir senha</button>${removable ? '<button class="text-button delete-user danger-text">Remover</button>' : ''}</td>`; $('.reset-user', row).onclick = async () => { if (!await confirmAction(`A senha de ${user.username} será redefinida para 123456.`, { title: 'Redefinir senha', confirm: 'Redefinir', danger: true })) return; await api(`/api/users/${user.id}/reset-password`, { method: 'POST' }); toast(`Senha de ${user.username} redefinida para 123456.`, 'success'); loadUsers(); }; if (removable) $('.delete-user', row).onclick = async () => { if (!await confirmAction(`Remover o usuário ${user.username}? Esta ação não pode ser desfeita.`, { title: 'Remover usuário', confirm: 'Remover', danger: true })) return; await api(`/api/users/${user.id}`, { method: 'DELETE' }); toast(`Usuário ${user.username} removido.`, 'success'); loadUsers(); }; target.append(row); });
+}
+async function loadDeveloper() { try { const health = await api('/health'); $('#health-status').textContent = health.status === 'ok' ? 'Online' : 'Indisponível'; $('#health-detail').textContent = health.status === 'ok' ? 'Serviço respondendo normalmente.' : 'Verifique o serviço.'; } catch { $('#health-status').textContent = 'Indisponível'; $('#health-detail').textContent = 'Não foi possível consultar o serviço.'; } }
 async function openGuide(number) {
   const guide = await api(`/api/guides/${number}`); $('#guide-number').value = guide.number; $('#ocs').value = guide.ocs; $('#patient').value = guide.patient; $('#billed').value = Number(guide.billed).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); $('#items').replaceChildren(); activeModule = guide.items[0]?.module || modules[0]; showAll = false; guide.items.forEach((item) => addItem(item.module, item)); if (!guide.items.length) addItem(); $('#print-guide').disabled = false; totals(); navigate('guide');
 }
-function navigate(screen) { document.querySelectorAll('.screen').forEach((item) => { item.hidden = item.id !== `${screen}-screen`; }); document.querySelectorAll('.nav-link').forEach((item) => item.classList.toggle('active', item.dataset.screen === screen)); if (screen === 'recent') loadRecent(); }
+function navigate(screen) { if (['admin', 'developer'].includes(screen) && currentSession?.role !== 'admin') return; if (['guide', 'recent'].includes(screen) && currentSession?.role === 'admin') return; document.querySelectorAll('.screen').forEach((item) => { item.hidden = item.id !== `${screen}-screen`; }); document.querySelectorAll('.nav-link').forEach((item) => item.classList.toggle('active', item.dataset.screen === screen)); if (screen === 'recent') loadRecent(); if (screen === 'admin') loadUsers().catch((error) => toast(error.message, 'error')); if (screen === 'developer') loadDeveloper(); }
 
-$('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); $('#login-error').hidden = true; try { const form = new FormData(event.currentTarget); const session = await api('/api/login', { method: 'POST', body: JSON.stringify(Object.fromEntries(form)) }); showApp(session.username); } catch (error) { $('#login-error').textContent = error.message; $('#login-error').hidden = false; } });
+$('#login-form').addEventListener('submit', async (event) => { event.preventDefault(); $('#login-error').hidden = true; try { const form = new FormData(event.currentTarget); const session = await api('/api/login', { method: 'POST', body: JSON.stringify(Object.fromEntries(form)) }); if (session.mustChangePassword) { currentSession = session; showPasswordView(); } else showApp(session); } catch (error) { $('#login-error').textContent = error.message; $('#login-error').hidden = false; } });
+$('#password-form').addEventListener('submit', async (event) => { event.preventDefault(); $('#password-error').hidden = true; try { const form = new FormData(event.currentTarget); const session = await api('/api/password', { method: 'POST', body: JSON.stringify(Object.fromEntries(form)) }); showApp(session); toast('Senha atualizada com sucesso.', 'success'); } catch (error) { $('#password-error').textContent = error.message; $('#password-error').hidden = false; } });
 $('#logout').onclick = async () => { await api('/api/logout', { method: 'POST' }); showLogin(); };
 document.querySelectorAll('.nav-link').forEach((button) => { button.onclick = () => navigate(button.dataset.screen); });
 $('#add-item').onclick = () => { const row = addItem(); persistDraft(); $('.specification', row).focus(); };
@@ -113,4 +131,6 @@ $('#previous-module').onclick = () => activateModule(modules[Math.max(0, modules
 $('#next-module').onclick = () => activateModule(modules[Math.min(modules.length - 1, modules.indexOf(activeModule) + 1)]);
 $('#show-all').onclick = () => { showAll = !showAll; renderFlow(); };
 
-if (new URLSearchParams(location.search).has('new-guide')) api('/api/session').then((session) => session?.username ? showApp(session.username) : showLogin()).catch(showLogin); else showLogin();
+$('#new-user-form').addEventListener('submit', async (event) => { event.preventDefault(); const formElement = event.currentTarget; const button = $('button', formElement); if (button.disabled) return; button.disabled = true; try { const form = new FormData(formElement); const user = await api('/api/users', { method: 'POST', body: JSON.stringify(Object.fromEntries(form)) }); formElement.reset(); toast(`Usuário ${user.username} criado. Senha temporária: 123456.`, 'success'); await loadUsers(); } catch (error) { if (error.message === 'Esse usuário já existe.') await loadUsers(); toast(error.message, 'error'); } finally { button.disabled = false; } });
+
+if (new URLSearchParams(location.search).has('new-guide')) api('/api/session').then((session) => session?.username ? (session.mustChangePassword ? showPasswordView() : showApp(session)) : showLogin()).catch(showLogin); else showLogin();

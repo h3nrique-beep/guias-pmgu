@@ -1,5 +1,9 @@
 # SISGLOSA
 
+## Proxmox
+
+Os arquivos de preparação para Proxmox VE ficam em [deploy/proxmox/README.md](deploy/proxmox/README.md). A aplicação usa MySQL quando as variáveis `DB_*` estiverem configuradas; sem elas, mantém o SQLite local.
+
 Versão 1.1.2. Aplicação local para elaborar guias de ajuste e glosa, com pré-visualização e impressão no padrão do documento PMGU.
 
 ## Requisitos

@@ -1,0 +1,22 @@
+[Unit]
+Description=SISGLOSA
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sisglosa
+Group=sisglosa
+WorkingDirectory=/opt/sisglosa
+EnvironmentFile=/etc/sisglosa/sisglosa.env
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/sisglosa/data
+
+[Install]
+WantedBy=multi-user.target
